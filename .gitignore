@@ -49,6 +49,8 @@ settings.json
 version.txt
 log.txt
 icon.iconset/
+dist_portable/
+build_portable/
 
 # Temporary files
 *.temp

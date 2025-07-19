@@ -50,6 +50,37 @@ jobs:
         if (-not (Test-Path "translations.json")) {
           '{"ru":{"title":"Python Updater"},"en":{"title":"Python Updater"}}' | Out-File -FilePath "translations.json" -Encoding UTF8
         }
+        
+        # Проверяем наличие version_info.txt, создаем если нет
+        if (-not (Test-Path "version_info.txt")) {
+          @"
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(1, 0, 0, 0),
+    prodvers=(1, 0, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x4,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo([
+      StringTable(u'040904B0', [
+        StringStruct(u'CompanyName', u'Python Updater'),
+        StringStruct(u'FileDescription', u'Python Updater - Modern application updater'),
+        StringStruct(u'FileVersion', u'1.0.0.0'),
+        StringStruct(u'ProductName', u'Python Updater'),
+        StringStruct(u'ProductVersion', u'1.0.0.0')
+      ])
+    ]),
+    VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
+  ]
+)
+"@ | Out-File -FilePath "version_info.txt" -Encoding UTF8
+        }
+        
         pyinstaller build.spec
       
     - name: 📋 List built files
@@ -282,6 +313,18 @@ jobs:
           - ✅ Мультиязычность (RU/EN)
           - ✅ Тёмная/светлая тема
           - ✅ Кроссплатформенность
+          - ✅ Отключен UPX для лучшей совместимости с антивирусами
+          
+          ### 🛡️ Важно для Windows пользователей:
+          
+          **Если антивирус блокирует файл:**
+          
+          1. **Это ложное срабатывание** - файл полностью безопасен
+          2. **Добавьте в исключения** антивируса
+          3. **Проверьте SHA256 хеш** для убедительности
+          4. **Исходный код открыт** на GitHub для проверки
+          
+          📋 [**Подробные инструкции по антивирусам**](https://github.com/MaratMustafin/python-updater/blob/main/WINDOWS_ANTIVIRUS.md)
           
           ### 🚀 Готово к использованию:
           
