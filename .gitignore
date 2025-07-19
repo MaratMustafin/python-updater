@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Project specific
+test_update.zip
+test_update.zip.sha256
+settings.json
+version.txt
+log.txt
+icon.iconset/
+
+# Temporary files
+*.temp
+*.log
+*.bak
+
+# Build artifacts
+*.exe
+*.app
+*.dmg
+*.deb
+*.rpm
+
+# Development
+.pytest_cache/
+.coverage
+htmlcov/
+
+# macOS specific
+icon.icns

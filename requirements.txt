@@ -1,0 +1,7 @@
+requests>=2.31.0
+appdirs>=1.4.4
+customtkinter>=5.2.0
+Pillow>=9.0.0
+
+# Для сборки исполняемых файлов
+pyinstaller>=5.13.0

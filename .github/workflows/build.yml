@@ -1,0 +1,305 @@
+name: 🚀 Build Python Updater
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Type of build'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+        - release
+        - debug
+
+jobs:
+  build-windows:
+    name: 🪟 Windows Build
+    runs-on: windows-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+        
+    - name: 🔨 Build CustomTkinter version
+      run: |
+        pyinstaller build_ctk.spec
+      
+    - name: 📋 List built files
+      run: |
+        echo "Built files:"
+        Get-ChildItem -Path dist\ -Recurse | Select-Object Name, Length
+        
+    - name: 📤 Upload Windows artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: windows-builds
+        path: |
+          dist/*.exe
+        retention-days: 30
+
+  build-macos:
+    name: 🍎 macOS Build
+    runs-on: macos-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+        
+    - name: 🎨 Create icon for macOS
+      run: |
+        python3 -c "
+        from PIL import Image, ImageDraw, ImageFont
+        import os
+        
+        # Создаем простую иконку
+        img = Image.new('RGBA', (1024, 1024), (70, 130, 180, 255))
+        draw = ImageDraw.Draw(img)
+        
+        # Рисуем круг
+        margin = 100
+        draw.ellipse([margin, margin, 1024-margin, 1024-margin], 
+                    fill=(100, 149, 237, 255), outline=(255, 255, 255, 255), width=20)
+        
+        # Добавляем текст
+        try:
+            font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 200)
+        except:
+            font = ImageFont.load_default()
+        
+        text = 'PU'
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        
+        x = (1024 - text_width) // 2
+        y = (1024 - text_height) // 2 - 50
+        
+        draw.text((x, y), text, fill=(255, 255, 255, 255), font=font)
+        img.save('icon.png', 'PNG')
+        "
+        
+        # Создаем .icns иконку
+        mkdir -p icon.iconset
+        for size in 16 32 64 128 256 512 1024; do
+          sips -z $size $size icon.png --out icon.iconset/icon_${size}x${size}.png
+        done
+        iconutil -c icns icon.iconset
+        rm -rf icon.iconset icon.png
+      continue-on-error: true
+        
+    - name: 🔨 Build CustomTkinter version for macOS
+      run: |
+        pyinstaller --name "PythonUpdater_CustomTkinter" \
+          --windowed \
+          --onefile \
+          --icon="icon.icns" \
+          --add-data "README.md:." \
+          --hidden-import="customtkinter" \
+          --collect-data="customtkinter" \
+          --osx-bundle-identifier="com.pythonupdater.customtkinter" \
+          main_ctk.py
+      
+    - name: 📋 List built files
+      run: |
+        echo "Built files:"
+        ls -la dist/
+        
+    - name: 📤 Upload macOS artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: macos-builds
+        path: |
+          dist/*.app
+        retention-days: 30
+
+  build-linux:
+    name: 🐧 Linux Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: 📦 Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-tk
+        
+    - name: 📦 Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+        
+    - name: 🔨 Build CustomTkinter version for Linux
+      run: |
+        pyinstaller --name "PythonUpdater_CustomTkinter_Linux" \
+          --onefile \
+          --add-data "README.md:." \
+          --hidden-import="customtkinter" \
+          --collect-data="customtkinter" \
+          main_ctk.py
+      
+    - name: 📋 List built files
+      run: |
+        echo "Built files:"
+        ls -la dist/
+        
+    - name: 📤 Upload Linux artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: linux-builds
+        path: |
+          dist/*
+        retention-days: 30
+
+  create-release:
+    name: 🎉 Create Release
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: 📥 Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+        
+    - name: 📋 List all artifacts
+      run: |
+        echo "All built artifacts:"
+        find artifacts -type f -exec ls -la {} \;
+        
+    - name: 📦 Create release archives
+      run: |
+        cd artifacts
+        
+        # Windows архив
+        if [ -d "windows-builds" ]; then
+          cd windows-builds
+          zip -r ../PythonUpdater_Windows.zip ./*
+          cd ..
+        fi
+        
+        # macOS архив
+        if [ -d "macos-builds" ]; then
+          cd macos-builds
+          tar -czf ../PythonUpdater_macOS.tar.gz ./*
+          cd ..
+        fi
+        
+        # Linux архив
+        if [ -d "linux-builds" ]; then
+          cd linux-builds
+          tar -czf ../PythonUpdater_Linux.tar.gz ./*
+          cd ..
+        fi
+        
+        ls -la *.zip *.tar.gz
+        
+    - name: 🚀 Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/PythonUpdater_Windows.zip
+          artifacts/PythonUpdater_macOS.tar.gz
+          artifacts/PythonUpdater_Linux.tar.gz
+        name: Python Updater ${{ github.ref_name }}
+        body: |
+          ## 🎉 Python Updater ${{ github.ref_name }}
+          
+          ### 📦 Что включено:
+          
+          - **🪟 Windows**: `PythonUpdater_Windows.zip`
+            - PythonUpdater_CTK.exe (CustomTkinter) ⭐
+          
+          - **🍎 macOS**: `PythonUpdater_macOS.tar.gz`
+            - PythonUpdater_CustomTkinter.app ⭐
+          
+          - **🐧 Linux**: `PythonUpdater_Linux.tar.gz`
+            - PythonUpdater_CustomTkinter_Linux ⭐
+          
+          ### ✨ Особенности версии:
+          
+          - ✅ Современный интерфейс CustomTkinter
+          - ✅ Поддержка выполнения .reg файлов (Windows)
+          - ✅ Мультиязычность (RU/EN)
+          - ✅ Тёмная/светлая тема
+          - ✅ Кроссплатформенность
+          
+          ### 🚀 Готово к использованию:
+          
+          **Единственная версия с лучшим пользовательским опытом!**
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test-builds:
+    name: 🧪 Test Builds
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: test-artifacts
+        
+    - name: 🧪 Test artifact integrity
+      run: |
+        echo "🔍 Проверка целостности сборок..."
+        
+        # Проверяем Windows файлы
+        if [ -d "test-artifacts/windows-builds" ]; then
+          echo "✅ Windows сборки найдены:"
+          ls -la test-artifacts/windows-builds/
+        fi
+        
+        # Проверяем macOS файлы
+        if [ -d "test-artifacts/macos-builds" ]; then
+          echo "✅ macOS сборки найдены:"
+          ls -la test-artifacts/macos-builds/
+        fi
+        
+        # Проверяем Linux файлы
+        if [ -d "test-artifacts/linux-builds" ]; then
+          echo "✅ Linux сборки найдены:"
+          ls -la test-artifacts/linux-builds/
+        fi
+        
+        echo "🎉 Все сборки успешно созданы!"
