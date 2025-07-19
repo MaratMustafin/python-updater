@@ -1,5 +1,11 @@
 name: 🚀 Build Python Updater
 
+# Права доступа для GITHUB_TOKEN
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
 on:
   push:
     branches: [ main, master ]
@@ -248,7 +254,7 @@ jobs:
         ls -la *.zip *.tar.gz
         
     - name: 🚀 Create GitHub Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           artifacts/PythonUpdater_Windows.zip
@@ -282,6 +288,7 @@ jobs:
           **Единственная версия с лучшим пользовательским опытом!**
         draft: false
         prerelease: false
+        make_latest: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
